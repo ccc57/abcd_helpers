@@ -19,13 +19,7 @@ from .functions import (
     get_full_subjects,
     make_cmd_list,
     calc_draw_mis,
-    get_pn,
-    get_crt,
-    get_varex,
-    make_bar_list,
-    off_diag,
-    make_signed_ps,
-    get_cfns,
-    plot_confusion_matrix,
-    collapse_group,
 )
+
+from . import resproc
+
