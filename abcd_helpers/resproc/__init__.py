@@ -1,13 +1,19 @@
-
 from .resproc import (
     get_pn,
     get_crt,
     get_varex,
     make_bar_list,
-    off_diag,
-    make_signed_ps,
+    plot_tail,
+    _run_gpd_p,
+    get_bs_p,
+    get_bs_stats,
+    get_bs_res,
+    get_sig_var_difs,
     get_cfn_sig,
     get_cfns,
+    invert_lut,
+    collapse_cfn,
+    normalize_cfn,
+    get_collapsed_perms,
     plot_confusion_matrix,
-    collapse_group
 )

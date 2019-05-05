@@ -903,5 +903,3 @@ def calc_draw_mis(ab_draws_df):
             mis.append(mir)
     mis = pd.DataFrame(mis)
     return mis
-
-
