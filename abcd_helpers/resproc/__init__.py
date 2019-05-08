@@ -16,4 +16,5 @@ from .resproc import (
     normalize_cfn,
     get_collapsed_perms,
     plot_confusion_matrix,
+    get_complete_perms,
 )

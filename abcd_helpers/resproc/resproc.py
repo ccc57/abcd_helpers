@@ -20,8 +20,8 @@ def get_crt(perm_pkz):
     pn = int(perm_pkz.parts[-1].split("_")[0].split("-")[1])
     task = perm_pkz.parts[-1].split("_")[2]
     contrast = perm_pkz.parts[-1].split("_")[3]
-    #run = perm_pkz.parts[-1].split("_")[4]
-    return pn, task, contrast#, run
+    # run = perm_pkz.parts[-1].split("_")[4]
+    return pn, task, contrast  # , run
 
 
 def get_varex(df):
@@ -89,7 +89,7 @@ def make_bar_list(
                 yoffset += len(df) + group_offset
                 if group_var is not None:
                     fdict[group_var].extend(list(df[group_var].values))
-                labels = np.array([vf] * len(df))
+                labels = np.array([vf] * len(df)).astype(np.object)
                 colors = np.array([palette[i]] * len(df))
 
                 if vf not in sig_exclude:
@@ -187,6 +187,8 @@ def _run_gpd_p(x, x0=0, side="upper", nx=260, fit_alpha=0.05, plot=False):
     x = np.sort(x)
     fit_p = 0
     n = len(x)
+    if nx > len(x):
+        nx = len(x)
     if side == "upper":
         epc = np.count_nonzero(x >= x0)
     elif side == "lower":
@@ -228,7 +230,8 @@ def _run_gpd_p(x, x0=0, side="upper", nx=260, fit_alpha=0.05, plot=False):
         if (p == 0) & (k > 0):
             p = nx / n * (1 - fitted_gpd.cdf(x.max() - t))
             if p == 0:
-                raise Exception("p = 0")
+                return (epc + 1) / (n + 1)
+                # raise Exception("p = 0")
         elif (p == 0) & (k <= 0):
             raise Exception("p=0 and k is not > 0")
     else:
@@ -236,12 +239,24 @@ def _run_gpd_p(x, x0=0, side="upper", nx=260, fit_alpha=0.05, plot=False):
         if (p == 0) & (k > 0):
             p = nx / n * (fitted_gpd.cdf(x.min() - t))
             if p == 0:
-                raise Exception("p = 0")
+                return (epc + 1) / (n + 1)
+                # raise Exception("p = 0")
         elif (p == 0) & (k <= 0):
             raise Exception("p=0 and k is not > 0")
 
     # return nx, t, fitted_gpd, p
     return p
+
+
+def test_run_gpd_p():
+    np.random.seed(seed=1)
+    assert _run_gpd_p(np.random.standard_normal(1000) + 3, side="lower") < 0.05
+    assert _run_gpd_p(np.random.standard_normal(1000) + 3, side="upper") > 0.95
+    assert _run_gpd_p(np.random.standard_normal(1000) - 3, side="lower") > 0.95
+    assert _run_gpd_p(np.random.standard_normal(1000) - 3, side="upper") < 0.05
+
+
+test_run_gpd_p()
 
 
 def get_bs_p(a, x=0, side="double", axis=None):
@@ -267,7 +282,7 @@ def get_bs_p(a, x=0, side="double", axis=None):
     """
     if axis is not None:
         new_shape = np.array(a.shape)[np.arange(len(a.shape)) != axis]
-        a = a.reshape(bs_perm_dif.shape[axis], -1).T
+        a = a.reshape(a.shape[axis], -1).T
     else:
         a = a.reshape(1, -1)
 
@@ -277,6 +292,8 @@ def get_bs_p(a, x=0, side="double", axis=None):
             res[ii] = (
                 np.min((_run_gpd_p(aa, x, "upper"), _run_gpd_p(aa, x, "lower"))) * 2
             )
+            if res[ii] > 1:
+                res[ii] = 1
         elif side in ["upper", "lower"]:
             res[ii] = _run_gpd_p(aa, x, side)
         else:
@@ -633,3 +650,30 @@ def collapse_group(cfn, group_lut, group_order, normalize=False):
     if normalize:
         collapsed = collapsed.astype("float") / collapsed.sum(axis=1)[:, np.newaxis]
     return collapsed
+
+
+def get_complete_perms(df, nperms=101, tfmri=False):
+    if tfmri:
+        df["label"] = df.contrast
+    else:
+        df["label"] = df.modality + "_" + df.ubermetric + "_" + df.metric
+
+    df = get_varex(df)
+
+    df["atlas"] = df.metric.str.split("__").str[0]
+
+    zero_worked = df.groupby(["label"]).pn.unique().apply(lambda x: 0 in x)
+    keep_labels = (
+        df.groupby(["label"])
+        .pn.nunique()[(df.groupby(["label"]).pn.nunique() >= nperms) & zero_worked]
+        .index.values
+    )
+
+    df_keep = df[df.label.isin(keep_labels)]
+
+    first_n_pns = (df_keep.groupby("pn")[["label"]].nunique() == zero_worked.sum())[
+        (df_keep.groupby("pn")[["label"]].nunique() == zero_worked.sum())
+    ].index.values[:nperms]
+    df_keep = df_keep[df_keep.pn.isin(first_n_pns)]
+
+    return df_keep
